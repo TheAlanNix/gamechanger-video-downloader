@@ -1,0 +1,19 @@
+[flake8]
+inline-quotes = single
+max-line-length = 100
+ignore =
+    # E501 module level import not at top of file
+    E501,
+    W503
+exclude =
+    .eggs/,
+    .git/,
+    .idea/,
+    .venv/,
+    .vscode/,
+    __pycache__,
+    build/,
+    dist/,
+    venv/,
+    example.py,
+    **/version.py

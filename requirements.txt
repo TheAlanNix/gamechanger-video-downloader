@@ -1,0 +1,9 @@
+certifi==2024.6.2
+charset-normalizer==3.3.2
+idna==3.7
+m3u8==5.1.0
+python-utils==3.8.2
+requests==2.32.3
+tqdm==4.66.4
+typing_extensions==4.12.2
+urllib3==2.2.2
