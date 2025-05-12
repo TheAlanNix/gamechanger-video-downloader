@@ -12,9 +12,8 @@ import requests
 
 from datetime import datetime
 
+from gamechanger_client import GameChangerClient
 from tqdm import tqdm
-
-from gamechanger import GameChangerDownloader, ApiError
 
 
 class RequestsClient():
@@ -28,10 +27,10 @@ class RequestsClient():
 
 
 def main():
-    gamechanger_downloader = GameChangerDownloader()
+    gamechanger = GameChangerClient()
 
     # Get current teams and sort by created date
-    teams = gamechanger_downloader.get_teams()
+    teams = gamechanger.me.teams()
     teams.sort(key=lambda x: x['created_at'], reverse=True)
 
     # Allow user to select a team
@@ -44,7 +43,7 @@ def main():
     team_id = teams[team_index - 1]['id']
 
     # Get the team's schedule and filter by games with a start time
-    schedule = gamechanger_downloader.get_team_schedule(team_id)
+    schedule = gamechanger.teams.schedule(team_id)
     game_schedule = list(filter(lambda x: (x['event']['event_type'] == 'game'
                                            and x['event']['status'] == 'scheduled'
                                            and 'datetime' in x['event']['start'].keys()), schedule))
@@ -63,12 +62,12 @@ def main():
 
         try:
             # Check to see if there are any videos for a given event
-            gamechanger_downloader.get_event_video_steam_videos(team_id, event_id)
+            gamechanger.teams.event_video_stream_assets(team_id, event_id)
 
             # Get the video stream playback info for the selected event
-            video_stream_playback_info = gamechanger_downloader.get_event_video_stream_playback_info(team_id, event_id)
+            video_stream_playback_info = gamechanger.teams.event_video_stream_playback_info(team_id, event_id)
             break
-        except ApiError:
+        except Exception:
             print('\n---  Failed Fetching Video Streams For Selected Event  ---')
             print("--- Either there are none, or you don't have permisson ---")
             print('---              Please Try Another Event              ---\n')
