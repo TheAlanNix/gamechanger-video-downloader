@@ -1,4 +1,4 @@
-#!/bin/python/env
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 A script to download video files from Gamechanger
@@ -16,14 +16,29 @@ from gamechanger_client import GameChangerClient
 from tqdm import tqdm
 
 
-class RequestsClient():
+class RequestsClient:
 
     def __init__(self, cookies):
         self.cookies = cookies
 
-    def download(self, uri, timeout=None, headers={}, verify_ssl=True):
-        o = requests.get(uri, timeout=timeout, headers=headers, cookies=self.cookies)
-        return o.text, o.url
+    def download(self, uri, timeout=None, headers=None, verify_ssl=True):
+        """Download helper used by m3u8 (returns text and final URL).
+
+        Args:
+            uri (str): URL to fetch.
+            timeout (float|tuple|None): requests timeout.
+            headers (dict|None): optional headers.
+            verify_ssl (bool): whether to verify TLS certs.
+
+        Returns:
+            tuple: (response_text, final_url)
+        """
+        if headers is None:
+            headers = {}
+
+        resp = requests.get(uri, timeout=timeout, headers=headers, cookies=self.cookies, verify=verify_ssl)
+        resp.raise_for_status()
+        return resp.text, resp.url
 
 
 def main():
@@ -105,16 +120,26 @@ def main():
         playlist_uri = f"{'/'.join(m3u8_data.base_uri.split('/')[:-2])}/{playlist_uri}"
         m3u8_data = m3u8.load(playlist_uri, http_client=video_request_client)
 
-        print(f'\nFetching video {video_stream_count} of {len(video_stream_playback_info)}')
+        # If there's an init segment, download it
+        for segmap in m3u8_data.segment_map:
+            init_uri = f"{'/'.join(m3u8_data.base_uri.split('/')[:-2])}/{segmap.uri}"
+            extension = os.path.splitext(segmap.uri)[1]
+            with open(f'{video_directory}/stream_{video_stream_count}{extension}', 'ab') as video_file:
+                with requests.get(init_uri, cookies=cookies, stream=True) as r:
+                    r.raise_for_status()
+                    video_file.write(r.content)
 
-        # Download and merge the videos
-        with open(f'{video_directory}/stream_{video_stream_count}.ts', 'ab') as ts_file:
-            for file in tqdm(m3u8_data.files):
-                video_uri = f"{'/'.join(m3u8_data.base_uri.split('/')[:-2])}/{file}"
+        # Download and merge the video segments
+        for segment_file in tqdm(m3u8_data.files):
+            video_uri = f"{'/'.join(m3u8_data.base_uri.split('/')[:-2])}/{segment_file}"
 
+            extension = os.path.splitext(video_uri)[1]
+            with open(f'{video_directory}/stream_{video_stream_count}{extension}', 'ab') as video_file:
                 with requests.get(video_uri, cookies=cookies, stream=True) as r:
+                    r.raise_for_status()
                     for chunk in r.iter_content(chunk_size=8192):
-                        ts_file.write(chunk)
+                        if chunk:
+                            video_file.write(chunk)
 
         video_stream_count += 1
 
